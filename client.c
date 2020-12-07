@@ -71,14 +71,16 @@ int main(int argc, char **argv)
 
 	char buf[101];
 
-	char writeBuf[] = "REG|12|Who's There?|";
-	char writeBuf2[] = "REG|17|Boo, who?|";
-	char writeBuf3[] = "REG|12|Yuck.|";
+	//char writeBuf[] = "REG|12|Who's There?|";
+	//char writeBuf2[] = "REG|9|Boo, who?|";
+	//char writeBuf3[] = "REG|5|Yuck.|";
 
-	char respBuf[] = "REG|13|Knock, Knock.|";
-	char respBuf2[] = "REG|4|Boo.|";
-	//char respBuf3[] = "REG|23|Awe, don't cry.|";
+	//char respBuf[] = "REG|13|Knock, Knock.|";
+	//char respBuf2[] = "REG|4|Boo.|";
+	//char respBuf3[] = "REG|15|Awe, don't cry.|";
 
+
+	char response[256];
 
 	int bytesRead = 0;
 	while((bytesRead = read(sock, buf, 100)) > 0){
@@ -87,6 +89,21 @@ int main(int argc, char **argv)
 	printf("Client Read %d bytes: %s\n", bytesRead, buf);
 	//puts("after client read");
 	
+
+	//while(response[strlen(response)-2]!='|'){
+	do{
+	printf("Response: ");
+	fgets(response, 256, stdin);
+	response[strlen(response)-1] = '\0';
+	//response[21]='\0';
+	//printf("Size of response: %d", sizeof(response));
+	//response[strlen(response)-1] = '\0';
+	printf("Sent: %s\n", response);
+	write(sock, response, strlen(response));
+	}while(response[strlen(response)-1]!='|');
+	//}while(read(sock, buf, 1)==0);
+	
+	/*
 	if(strcmp(buf, respBuf)==0){
 	write(sock, writeBuf, strlen(writeBuf));	
 	}
@@ -97,6 +114,7 @@ int main(int argc, char **argv)
 	write(sock, writeBuf3, strlen(writeBuf3));	
 	break;
 	}
+	*/
 
 	////memset(writeBuf, '\0', sizeof(writeBuf));
 	////memset(writeBuf, 0, 20);

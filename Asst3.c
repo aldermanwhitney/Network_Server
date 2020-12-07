@@ -20,8 +20,79 @@ struct connection {
 
 
 
-int readAndErrorCheck2(struct connection *c){
-return 0;
+int readAndErrorCheck2(struct connection *c, char buf[]){
+
+int bytesRead = 0;
+int verticalBarCount = 0;
+
+
+int i = 0;
+
+//read byte by byte into the buffer until the first vertical bar
+while(verticalBarCount<1){
+bytesRead+=read(c->fd, &buf[i], 1);
+printf("read %d bytes, char: %c\n", bytesRead, buf[i]);
+if(buf[i]=='|'){
+verticalBarCount++;
+}
+
+//Check for correct format
+if((i==0) && (buf[i]!='R' && buf[i]!='E')){
+break;
+}
+if((i==1) && (buf[i]!='E' && buf[i]!='R')){
+break;
+}
+if((i==2) && (buf[i]!='G' && buf[i]!='R')){
+break;
+}
+if(i==5){
+break;
+}
+
+
+
+i++;
+}
+
+//Check for correctly formatted message type
+if(strncmp(buf, "REG|", 4)==0){
+printf("Message is regular\n");
+
+
+//Continue reading byte by byte until the final vertical bar is sent
+while(verticalBarCount<3){
+bytesRead += read(c->fd, &buf[i], 1);
+printf("read %d bytes, char: %c\n", bytesRead, buf[i]);
+if(buf[i]=='|'){
+verticalBarCount++;
+}
+
+	
+i++;
+}
+
+}
+else if(strncmp(buf, "ERR|", 4)==0){
+//error message handling
+}
+else{
+//error message, incorect format
+puts("here");
+char errM0FT[] = "ERR|M0FT|";
+write(c->fd, errM0FT, strlen(errM0FT));
+return -1;
+}
+
+
+
+
+
+
+
+
+printf("Bytes Read: %d\n", bytesRead);
+return bytesRead;
 }
 
 
@@ -98,28 +169,35 @@ void *echo(void *arg)
 
     char resp[] = "REG|13|Knock, Knock.|";
     char resp2[] = "REG|4|Boo.|";
-    char resp3[] = "REG|23|Awe, don't cry.|";
+    char resp3[] = "REG|15|Awe, don't cry.|";
+    char resp4[] = "No answer for this case.";
 
    char recArg[] = "REG|12|Who's There?|";
-   char recArg2[] = "REG|17|Boo, who?|";
- //  char recArg3[] = "REG|12|Yuck.|";
+   char recArg2[] = "REG|9|Boo, who?|";
+   char recArg3[] = "REG|5|Yuck.|";
 
-
+    //initial Knock, Knock
     write(c->fd, resp, sizeof(resp));
 	
     int bytesRead = 0;    
-    while ((bytesRead = read(c->fd, buf, 100)) > 0) {
+    while ((bytesRead = readAndErrorCheck2(c, buf)) > 0) {
         buf[bytesRead] = '\0';
         printf("read %d bytes |%s|\n", bytesRead, buf);
     	
 	if(strcmp(buf, recArg)==0){
 	 write(c->fd, resp2, sizeof(resp2));
+    	 //memset(buf, '\0', sizeof(buf));
+	 //memset(buf, 0, 11);
 	}	
 	else if(strcmp(buf, recArg2)==0){
 	 write(c->fd, resp3, sizeof(resp3));
 	}	
-	else{//(strcmp(buf, recArg)==0){
-	 write(c->fd, resp, sizeof(resp));
+	else if(strcmp(buf, recArg3)==0){
+	 //write(c->fd, resp3, sizeof(resp3));
+	break;
+	}
+	else{
+	 write(c->fd, resp4, sizeof(resp4));
 	}	
 	
     	////memset(resp2, '\0', sizeof(resp2));
