@@ -83,7 +83,10 @@ int main(int argc, char **argv)
 	char response[256];
 
 	int bytesRead = 0;
-	while((bytesRead = read(sock, buf, 100)) > 0){
+	//while((bytesRead = read(sock, buf, 100)) > 0){
+	
+	while(1){
+	bytesRead+=read(sock, buf, 100);	
 	buf[bytesRead] = '\0';
 	//puts("in loop");
 	printf("Client Read %d bytes: %s\n", bytesRead, buf);
@@ -92,7 +95,7 @@ int main(int argc, char **argv)
 
 	//while(response[strlen(response)-2]!='|'){
 	do{
-	printf("Response: ");
+	printf("Response:\n");
 	fgets(response, 256, stdin);
 	response[strlen(response)-1] = '\0';
 	//response[21]='\0';
@@ -116,8 +119,8 @@ int main(int argc, char **argv)
 	}
 	*/
 
-	////memset(writeBuf, '\0', sizeof(writeBuf));
-	////memset(writeBuf, 0, 20);
+	memset(buf, '\0', sizeof(buf));
+	memset(buf, 0, 101);
 	}
 
 

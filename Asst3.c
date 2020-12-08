@@ -1,14 +1,18 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <pthread.h>
+#include <string.h>
 
 #define BACKLOG 5
 
 int argument = 0;
+int msgNumber = 0;
+int bufSize = 101;
+int bufBytesUsed = 0;
 
 
 // the argument we will pass to the connection-handler threads
@@ -19,16 +23,85 @@ struct connection {
 };
 
 
+/**Function takes a pointer to a connection struct
+ * and a char type: f, l or c indicating message type
+ *And writes the appropriate error message to the socket
+ *Will return without a write() if connection is null or type is not f,l or c
+ */
+void sendErrorMsg(struct connection *c, char type){
 
+if((c==NULL) || (type!='f' && type!='l' && type!='c')){
+printf("Connection is null or wrong type.\n");
+return;
+}
+
+if((msgNumber==1) && (type=='f')){
+char errM1FT[] = "ERR|M1FT|";
+printf("%s\n", errM1FT);
+write(c->fd, errM1FT, strlen(errM1FT));
+}
+else if((msgNumber==1) && (type=='l')){
+char errM1LN[] = "ERR|M1LN|";
+printf("%s\n", errM1LN);
+write(c->fd, errM1LN, strlen(errM1LN));
+}
+else if((msgNumber==1) && (type=='c')){
+char errM1CT[] = "ERR|M1CT|";
+printf("%s\n", errM1CT);
+write(c->fd, errM1CT, strlen(errM1CT));
+}
+else if((msgNumber==3) && (type=='f')){
+char errM3FT[] = "ERR|M3FT|";
+printf("%s\n", errM3FT);
+write(c->fd, errM3FT, strlen(errM3FT));
+}
+else if((msgNumber==3) && (type=='l')){
+char errM3LN[] = "ERR|M3LN|";
+printf("%s\n", errM3LN);
+write(c->fd, errM3LN, strlen(errM3LN));
+}
+else if((msgNumber==3) && (type=='c')){
+char errM3CT[] = "ERR|M3CT|";
+printf("%s\n", errM3CT);
+write(c->fd, errM3CT, strlen(errM3CT));
+}
+else if((msgNumber==5) && (type=='f')){
+char errM5FT[] = "ERR|M5FT|";
+printf("%s\n", errM5FT);
+write(c->fd, errM5FT, strlen(errM5FT));
+}
+else if((msgNumber==5) && (type=='l')){
+char errM5LN[] = "ERR|M5LN|";
+printf("%s\n", errM5LN);
+write(c->fd, errM5LN, strlen(errM5LN));
+}
+else if((msgNumber==5) && (type=='c')){
+char errM5CT[] = "ERR|M5CT|";
+printf("%s\n", errM5CT);
+write(c->fd, errM5CT, strlen(errM5CT));
+}
+else{
+printf("Nothing sent.Type: %c MsgNumber: %d\n", type, msgNumber);
+return;
+}
+
+return;
+}
+
+/**Function reads socket message from connection c into char buffer (buf) byte by byte
+ *checks for errors
+ *If an error is found, an appropriate error message is sent and -1 is returned
+ *If no errors found, function returns number of bytes read into buffer
+ */
 int readAndErrorCheck2(struct connection *c, char buf[]){
 
 int bytesRead = 0;
 int verticalBarCount = 0;
-
-
 int i = 0;
 
-//read byte by byte into the buffer until the first vertical bar
+//read byte by byte into the buffer 
+//until the first vertical bar, or the 5th char, whichever comes first
+//as long as all preceding chars match what is allowed
 while(verticalBarCount<1){
 bytesRead+=read(c->fd, &buf[i], 1);
 printf("read %d bytes, char: %c\n", bytesRead, buf[i]);
@@ -55,32 +128,93 @@ break;
 i++;
 }
 
+
 //Check for correctly formatted message type
 if(strncmp(buf, "REG|", 4)==0){
 printf("Message is regular\n");
 
+	char lengthBuf[500];
+	int lengthBufEnd = 0;
+	//Continue reading byte by byte until the second vertical bar is sent
+	//Or reached a non numerical character, whichever is first
+	while(verticalBarCount<2){
+	bytesRead += read(c->fd, &buf[i], 1);
+	printf("read %d bytes, char: %c\n", bytesRead, buf[i]);
+	if(buf[i]=='|'){
+	verticalBarCount++;
+	}
+	//send formatting error if reached a non digit before second vertical bar
+	if((isdigit(buf[i])==0) && (buf[i]!='|')){
+	sendErrorMsg(c, 'f');
+	return -1;
+	}
 
-//Continue reading byte by byte until the final vertical bar is sent
-while(verticalBarCount<3){
-bytesRead += read(c->fd, &buf[i], 1);
-printf("read %d bytes, char: %c\n", bytesRead, buf[i]);
-if(buf[i]=='|'){
-verticalBarCount++;
-}
+	if(verticalBarCount<2){
+	lengthBuf[lengthBufEnd]=buf[i];
+	}
 
-	
-i++;
-}
+	lengthBufEnd++;
+	i++;
+	}
 
-}
+
+	lengthBuf[lengthBufEnd-1]='\0';
+	//at this point, buffer will have ex: REG|23|
+	//length buffer will have 23
+////	printf("Current Buffer: %s\tLength Buffer:%c:%c\n", buf, lengthBuf[0], lengthBuf[lengthBufEnd-2]);
+	printf("here\n");
+	buf[bufSize-1]='\0';
+	printf("Current Buffer: %s\n", buf);
+	printf("Length Buf[0]: %c\n", lengthBuf[0]);	
+	int length = atoi(lengthBuf);
+	int endIndex = length + i + 1;
+	printf("Length: %d\n", length);
+
+
+	//read rest of message char by char
+	//until vertical bar or length reached, whichever is first
+	//while(i<endIndex){
+	while(1){
+	if(bytesRead==bufSize){
+	bufSize*=2;
+	buf = realloc(buf, bufSize);	
+	}
+	bytesRead+=read(c->fd, &buf[i], 1);
+	printf("read %d bytes, char: %c\n", bytesRead, buf[i]);
+	if(buf[i]=='|'){
+	verticalBarCount++;
+	break;
+	}
+	i++;	
+	}
+
+	//Send error msg if incorrect number of vertical bars
+	if(verticalBarCount!=3){
+	printf("Vertical Bar Count is: %d\n", verticalBarCount);
+	sendErrorMsg(c, 'f');
+	return -1;
+	}
+	else if(i!=endIndex-1){
+	printf("Msg Length Incorrect. Length: %d i: %i endIndex-1: %d\n", length, i, endIndex-1);
+	sendErrorMsg(c, 'l');
+	return -1;
+	}
+	else{
+	printf("Bytes Read: %d\n", bytesRead);
+	return bytesRead;
+	}
+
+
+	}
+
 else if(strncmp(buf, "ERR|", 4)==0){
-//error message handling
+//if server has recieved an error message, close connection
+return -1;
 }
 else{
 //error message, incorect format
-puts("here");
-char errM0FT[] = "ERR|M0FT|";
-write(c->fd, errM0FT, strlen(errM0FT));
+//puts("here");
+sendErrorMsg(c, 'f');
 return -1;
 }
 
@@ -95,61 +229,16 @@ printf("Bytes Read: %d\n", bytesRead);
 return bytesRead;
 }
 
-
-
-void readAndErrorCheck(struct connection *c){
-
-char msgType[4];
-//char msgReg[] = "REG";
-int bytesRead;
-
-    bytesRead = read(c->fd, msgType, 3);
-    msgType[bytesRead] = '\0';
-    printf("read %d bytes |%s|\n", bytesRead, msgType);
-
-if(strncmp(msgType, "REG", 3)==0){
-printf("Message is regular type. \n");
-
-//read first vertical bar in 
-//char vertBar[2];
-//bytesRead = read(c->fd, msgType, 1);
-//vertBar[bytesRead] = '\0';
-
-//error checking logic
-
-char buffer[300];
-
-//while((bytesRead = read(c->fd, buffer, 100))>0){
-//}
-
-bytesRead = read(c->fd, buffer, 11);
-buffer[bytesRead] = '\0';
-printf("Server Recieved: %s", buffer);
-
-
-
-
-}
-else if(strncmp(msgType, "ERR", 3)==0){
-
-}
-else{
-
-}
-
-
-return;
-}
-
-
 void *echo(void *arg)
 {
     char host[100]; 
     char port[10]; 
-    char buf[101];
+    //char buf[bufSize];
+
+    char *buf = malloc(bufSize);
     struct connection *c = (struct connection *) arg;
     int error;
-    //int nread;
+    msgNumber = 0;
 
 	// find out the name and port of the remote host
     error = getnameinfo((struct sockaddr *) &c->addr, c->addr_len, host, 100, port, 10, NI_NUMERICSERV);
@@ -167,37 +256,42 @@ void *echo(void *arg)
     //connected to client
     printf("[%s:%s] Connection\n", host, port);
 
-    char resp[] = "REG|13|Knock, Knock.|";
+    char resp[] = "REG|13|Knock, knock.|";
     char resp2[] = "REG|4|Boo.|";
     char resp3[] = "REG|15|Awe, don't cry.|";
-    char resp4[] = "No answer for this case.";
+    //char resp4[] = "No answer for this case.";
 
-   char recArg[] = "REG|12|Who's There?|";
+   char recArg[] = "REG|12|Who's there?|";
    char recArg2[] = "REG|9|Boo, who?|";
-   char recArg3[] = "REG|5|Yuck.|";
+   //char recArg3[] = "REG|5|Yuck.|";
 
     //initial Knock, Knock
     write(c->fd, resp, sizeof(resp));
-	
+    msgNumber++;
+
     int bytesRead = 0;    
     while ((bytesRead = readAndErrorCheck2(c, buf)) > 0) {
         buf[bytesRead] = '\0';
         printf("read %d bytes |%s|\n", bytesRead, buf);
     	
-	if(strcmp(buf, recArg)==0){
+	//Who's there received
+	if(strcmp(buf, recArg)==0 && msgNumber==1){
 	 write(c->fd, resp2, sizeof(resp2));
-    	 //memset(buf, '\0', sizeof(buf));
-	 //memset(buf, 0, 11);
-	}	
-	else if(strcmp(buf, recArg2)==0){
+	 msgNumber+=2;
+	}//Boo, who? received
+	else if(strcmp(buf, recArg2)==0 && msgNumber==3){
 	 write(c->fd, resp3, sizeof(resp3));
-	}	
-	else if(strcmp(buf, recArg3)==0){
+	 msgNumber+=2;
+	}//msg of disgust recieved	
+	else if((buf[bytesRead-2]=='.' || buf[bytesRead-2]=='!' ||
+		       buf[bytesRead-2]=='?') && msgNumber==5){
 	 //write(c->fd, resp3, sizeof(resp3));
 	break;
 	}
-	else{
-	 write(c->fd, resp4, sizeof(resp4));
+	else{//content is incorrect
+	sendErrorMsg(c, 'c');
+       	break;	
+	//write(c->fd, resp4, sizeof(resp4));
 	}	
 	
     	////memset(resp2, '\0', sizeof(resp2));
@@ -207,7 +301,7 @@ void *echo(void *arg)
 
 
    printf("[%s:%s] got EOF\n", host, port);
-
+    
     close(c->fd);
     free(c);
     return NULL;
@@ -220,7 +314,7 @@ int server(char *port)
     int error, sfd;
     pthread_t tid;
 
-    // initialize hints
+    //init socket hints
     memset(&hint, 0, sizeof(struct addrinfo));
     hint.ai_family = AF_UNSPEC;
     hint.ai_socktype = SOCK_STREAM;
@@ -322,6 +416,12 @@ int main(int argc, char **argv)
 		printf("Usage: %s [port]\n", argv[0]);
 		exit(EXIT_FAILURE);
 	}
+
+int portNum = atoi(argv[1]);
+if (portNum==0 || portNum<=5000 || portNum>=65536){
+printf("Must provide a valid port number. Must be in exclusive range: 5000-65536\n");
+exit(EXIT_FAILURE);
+}
 
     (void) server(argv[1]);
     return EXIT_SUCCESS;
