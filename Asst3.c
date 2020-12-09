@@ -136,7 +136,7 @@ if(strncmp(buf, "REG|", 4)==0){
 	//send formatting error if reached a non digit before second vertical bar
 	if((isdigit(buf[i])==0) && (buf[i]!='|')){
 	buf[bytesRead]='\0';
-	printf("Server Received: %s", buf);
+	printf("Server Received: %s\n", buf);
 	sendErrorMsg(c, 'f');
 	return -1;
 	}
@@ -154,14 +154,14 @@ if(strncmp(buf, "REG|", 4)==0){
 	//at this point, buffer will have ex: REG|23|
 	//length buffer will have 23
 	//printf("Current Buffer: %s\tLength Buffer:%c:%c\n", buf, lengthBuf[0], lengthBuf[lengthBufEnd-2]);
-	buf[bufSize-1]='\0';
+	////buf[bufSize-1]='\0';
 	//printf("Current Buffer: %s\n", buf);
 	//printf("Length Buf[0]: %c\n", lengthBuf[0]);	
 	int length = atoi(lengthBuf);
 	int endIndex = length + i + 1;
 	//printf("Length: %d\n", length);
 
-	//Take care of case where atoi returns zero
+	//Take care of case where atoi returns zero 
 	if(buf[i-1]=='|' && buf[i-2]=='|'){
 	buf[bytesRead]='\0';
 	printf("Server Received: %s\n", buf);
@@ -276,7 +276,7 @@ void *KKJProtocol(void *arg)
     }
 
     //connected to client
-    printf("[%s:%s]New Connection.\n", hostName, portNumber);
+    printf("[%s:%s] New Connection.\n", hostName, portNumber);
 
     //Hardcoded strings for final content comparison
     char resp[] = "REG|13|Knock, knock.|";
@@ -350,7 +350,7 @@ void *KKJProtocol(void *arg)
 	
     }
 
-   printf("[%s:%s]Connection ended.\n", hostName, portNumber);
+   printf("[%s:%s] Connection ended.\n", hostName, portNumber);
    
    //close the connection
     close(cta->fd);

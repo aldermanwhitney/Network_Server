@@ -2,6 +2,9 @@ Testcases
 
 Note: The server output denotes what is sent from the server to the client.
 All of the server's incoming and outgoing messages are printed to stdin.
+An incoming message will be read until an illegal character/format is found,
+at which point an error message is sent, and the connection is terminated.
+
 
 1) Regular protocol - this test tests the standard protocol.
 
