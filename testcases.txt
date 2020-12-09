@@ -1,0 +1,186 @@
+Testcases
+
+Note: The server output denotes what is sent from the server to the client.
+All of the server's incoming and outgoing messages are printed to stdin.
+
+1) Regular protocol - this test tests the standard protocol.
+
+   Client Input:	Server Output:
+1. (Connect to Server)	REG|13|Knock, knock.|
+2. REG|12|Who's there?|	REG|4|Boo.|
+3. REG|9|Boo, who?|	REG|14|Awe don't cry.|
+4. REG|4|Yuck.|		(Server Disconnects)
+
+2) Sending a zero length message. The server correctly finds
+correct format and length of message matches payload, 
+and sends a content error.
+
+   Client Input:	Server Output:
+1. (Connect to Server)	REG|13|Knock, knock.|
+2. REG|0||		ERR|M1CT|
+			(Server Disconnects)
+
+
+3) Testing long messages. The Server reports a
+content error, which is correct since there are exactly 203 'm's
+which means the length and format are correct.
+
+    Client Input:	Server Output:
+1. (Connect to Server)	REG|13|Knock, knock.|
+2. REG|203|mmmmmmmmmmm
+   mmmmmmmmmmmmmmmmmmm
+   mmmmmmmmmmmmmmmmmmm
+   mmmmmmmmmmmmmmmmmmm
+   mmmmmmmmmmmmmmmmmmm
+   mmmmmmmmmmmmmmmmmmm
+   mmmmmmmmmmmmmmmmmmm
+   mmmmmmmmmmmmmmmmmmm
+   mmmmmmmmmmmmmmmmmmm
+   mmmmmmmmmmmmmmmmmmm
+   mmmmmmmmmmmmmmmmmmm
+   mm|			ERR|M1CT| (Connection Closed)
+
+4) This test is the same as the above test, except there is
+one less "m". The server correctly returns a length format
+error, since there are 202 "m"s and the length in the 
+message says 203.
+
+    Client Input:	Server Output:
+1. (Connect to Server)	REG|13|Knock, knock.|
+2. REG|203|mmmmmmmmmmm
+   mmmmmmmmmmmmmmmmmmm
+   mmmmmmmmmmmmmmmmmmm
+   mmmmmmmmmmmmmmmmmmm
+   mmmmmmmmmmmmmmmmmmm
+   mmmmmmmmmmmmmmmmmmm
+   mmmmmmmmmmmmmmmmmmm
+   mmmmmmmmmmmmmmmmmmm
+   mmmmmmmmmmmmmmmmmmm
+   mmmmmmmmmmmmmmmmmmm
+   mmmmmmmmmmmmmmmmmmm
+   m|			ERR|M1LN| (Connection Closed)
+
+
+5) This tests the logic for message number and error codes.
+The input on line 3. is off by one letter, though format
+and length are correct. The server correctly returns
+a message 3 content error.
+
+   Client Input:	Server Output:
+1. (Connect to Server)	REG|13|Knock, knock.|
+2. REG|12|Who's there?|	REG|4|Boo.|
+3. REG|9|Boo, cho?|	ERR|M3CT| (Connection Closed)
+
+
+6) This test was to check cases with non-numbers
+where the length should be in the message. The
+server correctly returns format error for message 5
+
+   Client Input:	Server Output:
+1. (Connect to Server)	REG|13|Knock, knock.|
+2. REG|12|Who's there?|	REG|4|Boo.|
+3. REG|9|Boo, who?|	REG|14|Awe don't cry.|
+4. REG|fourteen||	ERR|M5FT| (Server Disconnects)
+
+7) This is to test the parsing of received messages
+which start with "ERR" but are formatted wrong.
+The server correctly returns a message 3 format error
+
+   Client Input:	Server Output:
+1. (Connect to Server)	REG|13|Knock, knock.|
+2. REG|12|Who's there?|	REG|4|Boo.|
+3. ERR|wrong		ERR|M3FT|
+
+
+8) This tests the server with input of a 
+correctly formatted error message from the client. 
+As per the spec, the server disconnects without sending
+anything, but prints the recieved error message to standard out.
+
+   Client Input:	Server Output:
+1. (Connect to Server)	REG|13|Knock, knock.|
+2. ERR|M0FT|		(Server disconnects)
+
+9) This is a similar test to above, but tests to see if the
+server disconnects when an error is sent for a different message. 
+As per the spec, the server disconnects without sending
+anything, but prints the recieved error message to standard out.
+
+   Client Input:	Server Output:
+1. (Connect to Server)	REG|13|Knock, knock.|
+2. REG|12|Who's there?|	REG|4|Boo.|
+3. ERR|M3FT|		(Server disconnects)
+
+10) This is a similar test to above, but this time, an error 
+message is sent for the wrong message. This time, the server
+first sends an error message - this is a format error message,
+since the error message from the client was the wrong message
+(should have been for message 3, not 5).
+
+   Client Input:	Server Output:
+1. (Connect to Server)	REG|13|Knock, knock.|
+2. REG|12|Who's there?|	REG|4|Boo.|
+3. ERR|M5FT|		ERR|M3FT| (Server disconnects)
+
+
+11) This tests the server when a message is sent seperately.
+
+   Client Input:	Server Output:
+1. (Connect to Server)	REG|13|Knock, knock.|
+2. REG|1
+3.  2|Who's t
+4.   here?|		REG|4|Boo.
+
+12) This tests the server when a message sent is formatted
+correctly, but the length does not match the specified length.
+
+   Client Input:	Server Output:
+1. (Connect to Server)	REG|13|Knock, knock.|
+2. REG|12|This message  ERR|M1LN|
+   is far too long.|
+
+13) This tests the error message when the client
+sends only 3 vertical bars. The server correctly
+returns a format error.
+
+   Client Input:	Server Output:
+1. (Connect to Server)	REG|13|Knock, knock.|
+2. |||			ERR|M1FT|
+
+14) This tests a specific ill-formatted message.
+
+   Client Input:	Server Output:
+1. (Connect to Server)	REG|13|Knock, knock.|
+2. REG|12|Who's there?|	REG|4|Boo.|
+3. REG|||		ERR|M3FT| (Server disconnects)
+
+15) This tests another ill-formatted message. 
+
+   Client Input:	Server Output:
+1. (Connect to Server)	REG|13|Knock, knock.|
+2. REG|%||		ERR|M1FT| (Server disconnects)	
+
+16) This tests a message that is formatted correctly,
+but has the wrong content. 
+
+   Client Input:	Server Output:
+1. (Connect to Server)	REG|13|Knock, knock.|
+2. REG|000||		ERR|M1CT| (Server disconnects)	
+
+
+17) This tests sending an error message which is missing
+a terminating vertical bar, and therefore ill-formatted.
+
+   Client Input:	Server Output:
+1. (Connect to Server)	REG|13|Knock, knock.|
+2. ERR|M0FT		ERR|M1FT| (Server disconnects)	
+
+18) This tests sending a message which fits the format,
+but is too short.
+
+   Client Input:	Server Output:
+1. (Connect to Server)	REG|13|Knock, knock.|
+2. REG|12|short.|	ERR|M1LN| (Server disconnects)	
+ 
+ 
+
