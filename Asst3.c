@@ -350,7 +350,6 @@ void *KKJProtocol(void *arg)
     int bytesRead = 0;    
     while ((bytesRead = readAndErrorCheck(cta, buf)) > 0) {
         buf[bytesRead] = '\0';
-       printf("read %d bytes |%s|\n", bytesRead, buf);
 	
        //If control is here, the message has passed all length and format checks
        //perform the final content checks
@@ -404,7 +403,6 @@ int setupServer(char *portNumber)
     struct addrinfo *address_list;
     int error = getaddrinfo(NULL, portNumber, &hint, &address_list);
     if (error != 0) {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(error));
         return -1;
     }
 
