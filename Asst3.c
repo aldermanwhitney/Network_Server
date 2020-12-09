@@ -84,9 +84,10 @@ return;
 /**Function reads socket message from ConnectionThreadArg struct c into char buffer (buf) byte by byte
  *checks for errors
  *If an error is found, an appropriate error message is sent and -1 is returned
+ *If the client closes the connected (bytes read() = 0) -1 is returned
  *If no errors found, function returns number of bytes read into buffer
  */
-int readAndErrorCheck2(struct ConnectionThreadArg *c, char *buf){
+int readAndErrorCheck(struct ConnectionThreadArg *c, char *buf){
 
 int bytesRead = 0;
 int verticalBarCount = 0;
@@ -98,6 +99,11 @@ int i = 0;
 while(verticalBarCount<1){
 bytesRead+=read(c->fd, &buf[i], 1);
 //printf("read %d bytes, char: %c\n", bytesRead, buf[i]);
+
+//take care of case where client disconnects
+if(bytesRead==0){
+return -1;
+}
 if(buf[i]=='|'){
 verticalBarCount++;
 }
@@ -130,6 +136,11 @@ if(strncmp(buf, "REG|", 4)==0){
 	while(verticalBarCount<2){
 	bytesRead += read(c->fd, &buf[i], 1);
 	//printf("read %d bytes, char: %c\n", bytesRead, buf[i]);
+	
+	//take care of case where client disconnects
+	if(bytesRead==0){
+	return -1;
+	}
 	if(buf[i]=='|'){
 	verticalBarCount++;
 	}
@@ -153,15 +164,10 @@ if(strncmp(buf, "REG|", 4)==0){
 	lengthBuf[lengthBufEnd-1]='\0';
 	//at this point, buffer will have ex: REG|23|
 	//length buffer will have 23
-	//printf("Current Buffer: %s\tLength Buffer:%c:%c\n", buf, lengthBuf[0], lengthBuf[lengthBufEnd-2]);
-	////buf[bufSize-1]='\0';
-	//printf("Current Buffer: %s\n", buf);
-	//printf("Length Buf[0]: %c\n", lengthBuf[0]);	
 	int length = atoi(lengthBuf);
 	int endIndex = length + i + 1;
-	//printf("Length: %d\n", length);
 
-	//Take care of case where atoi returns zero 
+	//Take care of case where atoi returns zero for vertical bar
 	if(buf[i-1]=='|' && buf[i-2]=='|'){
 	buf[bytesRead]='\0';
 	printf("Server Received: %s\n", buf);
@@ -175,6 +181,12 @@ if(strncmp(buf, "REG|", 4)==0){
 	while(i<endIndex){
 	bytesRead+=read(c->fd, &buf[i], 1);
 	//printf("read %d bytes, char: %c\n", bytesRead, buf[i]);
+	
+	//take care of case where client disconnects
+	if(bytesRead==0){
+	return -1;
+	}
+	
 	if(buf[i]=='|'){
 	verticalBarCount++;
 	break;
@@ -205,16 +217,19 @@ if(strncmp(buf, "REG|", 4)==0){
 	}
 //if the server has received an error message, check to see if the error message is correctly formatted
 //if so, close the connection
-//if not, send appropriate error message and then close the connection
+//if not, write to stdout note about ill formatted error message and then close the connection
+//ass specified on piazza
 else if(strncmp(buf, "ERR|", 4)==0){
-//if server has recieved an error message, close connection
 int errMsgLength = 0;
 
 	while(errMsgLength<5){
 	bytesRead += read(c->fd, &buf[i], 1);
-	//printf("read %d bytes, char: %c\n", bytesRead, buf[i]);
 	
-	//errMsgBuf[errMsgBufEnd]=buf[i];
+	//take care of case where client disconnects
+	if(bytesRead==0){
+	return -1;
+	}
+	
 	if(buf[i]=='|'){
 	verticalBarCount++;
 	break;
@@ -226,22 +241,64 @@ int errMsgLength = 0;
 
 	//If the error message received is not the correct length (9)
 	//Or does not include two vertical bars in the correct places
-	//send format error, and then close connection
+	//Note to stdout the error, and then close connection
 	if(verticalBarCount!=2 || errMsgLength!=4){
 	buf[bytesRead]='\0';	
-	printf("Server Received: %s\n", buf);
-	sendErrorMsg(c, 'f');
+	printf("Server Received:(Ill-formated error message) %s\n", buf);
+	//sendErrorMsg(c, 'f');
 	return -1;
+	}
+	else if(buf[i-4]!='M' || isdigit(buf[i-3])==0 || isalpha(buf[i-2])==0 || isalpha(buf[i-1])==0 ){
+	buf[bytesRead] = '\0';
+	printf("Server Received:(Ill-formated error message) %s\n", buf);
+	return -1;
+	}//if a correctly formatted/numbered error message was received, break and close connection
+	else if((strncmp(buf, "ERR|M0FT|", 9)==0) && (msgNumber==1)){
+	buf[bytesRead]='\0';	
+	printf("Server Received: %s\n", buf);
+	}
+	else if((strncmp(buf, "ERR|M0LN|", 9)==0) && (msgNumber==1)){
+	buf[bytesRead]='\0';	
+	printf("Server Received: %s\n", buf);
+	}
+	else if((strncmp(buf, "ERR|M0CT|", 9)==0) && (msgNumber==1)){
+	buf[bytesRead]='\0';	
+	printf("Server Received: %s\n", buf);
+	}
+	else if((strncmp(buf, "ERR|M2FT|", 9)==0) && (msgNumber==3)){
+	buf[bytesRead]='\0';	
+	printf("Server Received: %s\n", buf);
+	}
+	else if((strncmp(buf, "ERR|M2LN|", 9)==0) && (msgNumber==3)){
+	buf[bytesRead]='\0';	
+	printf("Server Received: %s\n", buf);
+	}
+	else if((strncmp(buf, "ERR|M2CT|", 9)==0) && (msgNumber==3)){
+	buf[bytesRead]='\0';	
+	printf("Server Received: %s\n", buf);
+	}
+	else if((strncmp(buf, "ERR|M4FT|", 9)==0) && (msgNumber==5)){
+	buf[bytesRead]='\0';	
+	printf("Server Received: %s\n", buf);
+	}
+	else if((strncmp(buf, "ERR|M4LN|", 9)==0) && (msgNumber==5)){
+	buf[bytesRead]='\0';	
+	printf("Server Received: %s\n", buf);
+	}
+	else if((strncmp(buf, "ERR|M4CT|", 9)==0) && (msgNumber==5)){
+	buf[bytesRead]='\0';	
+	printf("Server Received: %s\n", buf);
+	}
+	else{	
+	buf[bytesRead]='\0';	
+	printf("Server Received: (Incorrect Error Message) %s\n", buf);
 	}
 
 
-
-buf[bytesRead]='\0';	
-printf("Server Received: %s\n", buf);
-return bytesRead;
+return -1;
 }
 else{
-//error message, incorect format
+//send error message, incorect format
 buf[bytesRead]='\0';	
 printf("Server Received: %s\n", buf);
 sendErrorMsg(c, 'f');
@@ -270,7 +327,7 @@ void *KKJProtocol(void *arg)
    // find out the name and port of the remote host
    int error = getnameinfo((struct sockaddr *) &cta->addr, cta->addr_len, hostName, 100, portNumber, 10, NI_NUMERICSERV);
     
-   if (error != 0) {
+   if(error != 0){
         close(cta->fd);
         return NULL;
     }
@@ -282,8 +339,8 @@ void *KKJProtocol(void *arg)
     char resp[] = "REG|13|Knock, knock.|";
     char resp2[] = "REG|4|Boo.|";
     char resp3[] = "REG|14|Awe don't cry.|";
-   char recArg[] = "REG|12|Who's there?|";
-   char recArg2[] = "REG|9|Boo, who?|";
+    char recArg[] = "REG|12|Who's there?|";
+    char recArg2[] = "REG|9|Boo, who?|";
 
     //initial Knock, Knock
     write(cta->fd, resp, sizeof(resp));
@@ -291,15 +348,15 @@ void *KKJProtocol(void *arg)
     msgNumber++;
 
     int bytesRead = 0;    
-    while ((bytesRead = readAndErrorCheck2(cta, buf)) > 0) {
+    while ((bytesRead = readAndErrorCheck(cta, buf)) > 0) {
         buf[bytesRead] = '\0';
-       // printf("read %d bytes |%s|\n", bytesRead, buf);
+       printf("read %d bytes |%s|\n", bytesRead, buf);
 	
        //If control is here, the message has passed all length and format checks
        //perform the final content checks
 
-	//Who's there received
-	if(strcmp(buf, recArg)==0 && msgNumber==1){
+	 //Who's there received
+	if (strcmp(buf, recArg)==0 && msgNumber==1){
 	 write(cta->fd, resp2, sizeof(resp2)); 
    	 printf("Server Sent: %s\n", resp2);
 	 msgNumber+=2;
@@ -313,36 +370,7 @@ void *KKJProtocol(void *arg)
 		 buf[bytesRead-2]=='?') && msgNumber==5){
 	break;
 	}
-	//if a correctly formatted/numbered error message was received,
-	//break and close connection
-	else if((strncmp(buf, "ERR|M0FT|", 9)==0) && (msgNumber==1)){
-	break;
-	}
-	else if((strncmp(buf, "ERR|M0LN|", 9)==0) && (msgNumber==1)){
-	break;
-	}
-	else if((strncmp(buf, "ERR|M0CT|", 9)==0) && (msgNumber==1)){
-	break;
-	}
-	else if((strncmp(buf, "ERR|M2FT|", 9)==0) && (msgNumber==3)){
-	break;
-	}
-	else if((strncmp(buf, "ERR|M2LN|", 9)==0) && (msgNumber==3)){
-	break;
-	}
-	else if((strncmp(buf, "ERR|M2CT|", 9)==0) && (msgNumber==3)){
-	break;
-	}
-	else if((strncmp(buf, "ERR|M4FT|", 9)==0) && (msgNumber==5)){
-	break;
-	}
-	else if((strncmp(buf, "ERR|M4LN|", 9)==0) && (msgNumber==5)){
-	break;
-	}
-	else if((strncmp(buf, "ERR|M4CT|", 9)==0) && (msgNumber==5)){
-	break;
-	}
-	else{//content is incorrect, whether it be a REG or an ERR msg
+	else{//content is incorrect, for a REG msg
 	//Send error message, then break and close connection
 	sendErrorMsg(cta, 'c');
        	break;	
